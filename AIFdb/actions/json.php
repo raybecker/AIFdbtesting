@@ -4,18 +4,31 @@ class JsonAction extends Action {
 
     function handle($args) {
         parent::handle($args);
-
+		
         if($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $uploaddir = INSTALLDIR.'/tmp/';
+            $uploaddir = INSTALLDIR.'/upload/tmp/';
+			# $json_file = $uploaddir . $_FILES['file']['name'];
             $json_file = $uploaddir . basename($_FILES['file']['name']);
-
-            if(move_uploaded_file($_FILES['file']['tmp_name'], $json_file)){
+			# echo $json_file;
+			# echo basename($_FILES['file']['name']);
+            echo 'Here is some more debugging info:';
+			// echo $uploaddir;
+			# print_r($_FILES);
+			// var_dump(get_defined_vars());
+			// var_dump($_FILES['file']['name']);
+			$move_test = move_uploaded_file($_FILES['file']['tmp_name'], $json_file);
+			$upload_test = is_uploaded_file($_FILES['file']['name']);
+			var_dump(get_defined_vars());
+			// var_dump($upload_test);
+			// var_dump($move_test);
+			if($move_test != FALSE){
                 $jsondata = file_get_contents($json_file);
                 $json = json_decode($jsondata);
-
+				// echo "The json file is: " . $json;
                 $nodeset = DB_DataObject::factory('nodesets');
                 assert($nodeset);
                 $nodesetId = $nodeset->insert();
+				
                 $idmaps = array();
                 foreach ($json->nodes as $node) {
                     $nodeID = $this->add_node($node->text, $node->type);
@@ -49,15 +62,7 @@ class JsonAction extends Action {
                     }
                 }
 
-        $this->virtuoso($nodesetId);
 
-                $rdetail = array('nodeSetID' => $nodesetId, 'mappings' => $idmaps, 'partadd' => $p_added);
-                $rdj = json_encode($rdetail);
-                $return = $rdj;// . "Imported as nodeSet " . $nodesetId;
-                common_template('clean', '', $return);
-
-            }else{
-                common_user_error('Error uploading file');
             }
 
         }elseif($this->arg('nodesetid')){
@@ -178,23 +183,30 @@ class JsonAction extends Action {
     }
 
     function virtuoso($nsid) {
-        $url = 'http://tomcat.arg.tech/ArgStructSearch/search/virtuoso/load/';
-
-        // use key 'http' even if you send the request to https://...
-        $options = array(
-            'http' => array(
-                'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
-                'method'  => 'POST',
-                'content' => strval($nsid)
-            )
-        );
-        $context  = stream_context_create($options);
-        $result = file_get_contents($url, false, $context);
-        if ($result === FALSE) {
-            error_log("ERROR saving to virtuoso instance", 0);
-        }else{
-            error_log("V DONE", 0);
-        }
+		// echo "virtuoso's nsid is: " . $nsid; // This seems to do nothing
+		if($nsid == "") {
+			echo 'nsid is empty';
+			# var_dump($nsid); // This gives much more information
+		}else{
+			// $url = 'http://localhost:8080/ArgStructSearch/search/virtuoso/load/';
+			$url = 'http://tomcat.arg.tech/ArgStructSearch/search/virtuoso/load/';
+			
+			// use key 'http' even if you send the request to https://...
+			$options = array(
+				'http' => array(
+					'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+					'method'  => 'POST',
+					'content' => strval($nsid)
+				)
+			);
+			$context  = stream_context_create($options);
+			$result = file_get_contents($url, false, $context);
+			if ($result === FALSE) {
+				error_log("ERROR saving to virtuoso instance", 0);
+			}else{
+				error_log("V DONE", 0);
+			}
+		}		
     }
 
     function add_locution($nodeID, $personID, $start=NULL) {
